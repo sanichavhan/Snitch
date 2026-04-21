@@ -16,7 +16,12 @@ function App() {
   console.log(user)
 
   useEffect(() => {
-    handleGetMe()
+    // Add small delay to ensure cookies are set after redirect
+    const timer = setTimeout(() => {
+      handleGetMe()
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, [])
 
   return (

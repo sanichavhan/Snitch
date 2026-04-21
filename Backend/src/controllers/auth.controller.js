@@ -12,12 +12,20 @@ async function sendTokenResponse(user, res, message) {
         expiresIn: config.JWT_EXPIRE
     })
 
-    res.cookie("token", token, {
+    const cookieOptions = {
         httpOnly: true,
-        secure: config.NODE_ENV === "production",
-        sameSite: config.NODE_ENV === "production" ? "none" : "strict",
         maxAge: 7 * 24 * 60 * 60 * 1000
-    })
+    };
+
+    if (config.NODE_ENV === "production") {
+        cookieOptions.secure = true;
+        cookieOptions.sameSite = "none";
+    } else {
+        cookieOptions.secure = false;
+        cookieOptions.sameSite = "lax";
+    }
+
+    res.cookie("token", token, cookieOptions)
 
     res.status(200).json({
         message,

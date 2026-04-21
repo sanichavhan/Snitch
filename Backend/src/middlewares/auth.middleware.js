@@ -8,6 +8,7 @@ export const authenticateUser = async (req, res, next) => {
     const token = req.cookies.token
 
     if (!token) {
+        console.log("❌ No token in cookies. Cookies received:", Object.keys(req.cookies))
         return res.status(401).json({ message: "Unauthorized" })
     }
 
@@ -16,6 +17,7 @@ export const authenticateUser = async (req, res, next) => {
         const isBlacklisted = await blacklistModel.findOne({ token })
         
         if (isBlacklisted) {
+            console.log("❌ Token is blacklisted")
             return res.status(401).json({ message: "Token has been revoked" })
         }
 
@@ -24,6 +26,7 @@ export const authenticateUser = async (req, res, next) => {
         const user = await userModel.findById(decoded.id)
 
         if (!user) {
+            console.log("❌ User not found for token")
             return res.status(401).json({ message: "Unauthorized" })
         }
 
@@ -31,7 +34,7 @@ export const authenticateUser = async (req, res, next) => {
         next()
 
     } catch (err) {
-        console.log(err)
+        console.log("❌ Auth error:", err.message)
         return res.status(401).json({ message: "Unauthorized" })
     }
 }

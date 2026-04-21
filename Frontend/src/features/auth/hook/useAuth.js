@@ -74,8 +74,11 @@ export const useAuth = () => {
             
             dispatch(setUser(data.user))
         } catch (err) {
-            console.log(err)
-            dispatch(setError(err.message || "Failed to fetch user"))
+            // Silently fail for unauthenticated users (401 is normal for first visit)
+            if (err.response?.status !== 401) {
+                console.error("Auth error:", err)
+            }
+            // Don't dispatch error for missing auth, just clear user state
         } finally {
             dispatch(setLoading(false))
         }
