@@ -3,66 +3,107 @@ import { uploadFile } from "../services/storage.service.js";
 
 
 export async function createProduct(req, res) {
-    const { title, description, priceAmount, priceCurrency, category, tags } = req.body;
-    const seller = req.user;
+    try {
+        const { title, description, priceAmount, priceCurrency, category, tags } = req.body;
+        const seller = req.user;
 
-    const images = await Promise.all(req.files.map(async (file) => {
-        return await uploadFile({
-            buffer: file.buffer,
-            fileName: file.originalname
+        // Validation
+        if (!title || !description || !category || !priceAmount) {
+            return res.status(400).json({
+                success: false,
+                message: "Title, description, category, and price are required"
+            });
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "At least one image is required"
+            });
+        }
+
+        const images = await Promise.all(req.files.map(async (file) => {
+            return await uploadFile({
+                buffer: file.buffer,
+                fileName: file.originalname
+            })
+        }))
+
+        const product = await productModel.create({
+            title,
+            description,
+            category,
+            tags: tags ? JSON.parse(tags) : [],
+            price: {
+                amount: priceAmount,
+                currency: priceCurrency || "INR"
+            },
+            images,
+            seller: seller._id
         })
-    }))
 
+        res.status(201).json({
+            message: "Product created successfully",
+            success: true,
+            product
+        })
+    } catch (error) {
+        console.error("Product creation error:", error);
+        
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({
+                success: false,
+                message: messages.join(', ')
+            });
+        }
 
-    const product = await productModel.create({
-        title,
-        description,
-        category,
-        tags: tags ? JSON.parse(tags) : [],
-        price: {
-            amount: priceAmount,
-            currency: priceCurrency || "INR"
-        },
-        images,
-        seller: seller._id
-    })
-
-
-    res.status(201).json({
-        message: "Product created successfully",
-        success: true,
-        product
-    })
+        res.status(500).json({
+            message: "Error creating product",
+            success: false,
+            error: error.message
+        })
+    }
 }
 
 export async function getSellerProducts(req, res) {
-    const seller = req.user;
-    const { q } = req.query;
+    try {
+        const seller = req.user;
+        const { q } = req.query;
 
-    let query = { seller: seller._id };
+        let query = { seller: seller._id };
 
-    if (q && q.length >= 3) {
-        query.$and = [
-            { seller: seller._id },
-            {
-                $or: [
-                    { title: { $regex: q, $options: "i" } },
-                    { description: { $regex: q, $options: "i" } },
-                    { category: { $regex: q, $options: "i" } },
-                    { tags: { $in: [ new RegExp(q, "i") ] } }
-                ]
-            }
-        ];
-        delete query.seller; // Already handled in $and
+        if (q && q.length >= 3) {
+            query.$and = [
+                { seller: seller._id },
+                {
+                    $or: [
+                        { title: { $regex: q, $options: "i" } },
+                        { description: { $regex: q, $options: "i" } },
+                        { category: { $regex: q, $options: "i" } },
+                        { tags: { $in: [ new RegExp(q, "i") ] } }
+                    ]
+                }
+            ];
+            delete query.seller; // Already handled in $and
+        }
+
+        const products = await productModel.find(query).sort({ createdAt: -1 });
+
+        res.status(200).json({
+            message: "Products fetched successfully",
+            success: true,
+            products
+        })
+    } catch (error) {
+        console.error("Error fetching seller products:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error fetching seller products",
+            error: error.message
+        });
     }
-
-    const products = await productModel.find(query).sort({ createdAt: -1 });
-
-    res.status(200).json({
-        message: "Products fetched successfully",
-        success: true,
-        products
-    })
 }
 
 export async function getAllProducts(req, res) {

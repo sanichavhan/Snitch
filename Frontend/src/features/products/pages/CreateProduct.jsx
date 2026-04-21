@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { useProduct } from '../hooks/useProduct';
 
 const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP'];
+const CATEGORIES = ['shirt', 'pant', 'jacket', 'shoe', 'bag', 'watch', 'belt', 'scarf', 'other'];
 const MAX_IMAGES = 7;
 
 const CreateProduct = () => {
@@ -14,10 +15,12 @@ const CreateProduct = () => {
         description: '',
         priceAmount: '',
         priceCurrency: 'INR',
+        category: '',
     });
     const [images, setImages] = useState([]);
     const [isDragging, setIsDragging] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
     const fileInputRef = useRef(null);
 
     const handleChange = (e) => {
@@ -58,11 +61,36 @@ const CreateProduct = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+        
+        // Validation
+        if (!formData.title.trim()) {
+            setError('Product title is required');
+            return;
+        }
+        if (!formData.description.trim()) {
+            setError('Description is required');
+            return;
+        }
+        if (!formData.category) {
+            setError('Category is required');
+            return;
+        }
+        if (!formData.priceAmount || parseFloat(formData.priceAmount) <= 0) {
+            setError('Valid price is required');
+            return;
+        }
+        if (images.length === 0) {
+            setError('At least one image is required');
+            return;
+        }
+        
         setIsSubmitting(true);
         try {
             const data = new FormData();
             data.append('title', formData.title);
             data.append('description', formData.description);
+            data.append('category', formData.category);
             data.append('priceAmount', formData.priceAmount);
             data.append('priceCurrency', formData.priceCurrency);
             images.forEach(img => data.append('images', img.file));
@@ -70,6 +98,7 @@ const CreateProduct = () => {
             navigate('/');
         } catch (err) {
             console.error('Failed to create product', err);
+            setError(err.response?.data?.message || err.message || 'Failed to create product');
         } finally {
             setIsSubmitting(false);
         }
@@ -128,6 +157,14 @@ const CreateProduct = () => {
 
                     {/* ── Form ── */}
                     <form onSubmit={handleSubmit} className="pt-14 pb-24">
+                        
+                        {/* ── Error Message ── */}
+                        {error && (
+                            <div className="mb-8 p-4 bg-red-100 border border-red-300 text-red-700 rounded">
+                                <p className="text-sm">{error}</p>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-14 lg:gap-20 lg:items-start">
 
                             {/* ── LEFT COLUMN: Text Fields ── */}
@@ -224,6 +261,35 @@ const CreateProduct = () => {
                                             </select>
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Category */}
+                                <div className="flex flex-col gap-2">
+                                    <label
+                                        htmlFor="cp-category"
+                                        className="text-[10px] uppercase tracking-[0.2em] font-medium"
+                                        style={{ color: '#7A6E63' }}
+                                    >
+                                        Category
+                                    </label>
+                                    <select
+                                        id="cp-category"
+                                        name="category"
+                                        value={formData.category}
+                                        onChange={handleChange}
+                                        required
+                                        className="w-full bg-transparent outline-none py-4 text-sm cursor-pointer appearance-none transition-colors duration-300"
+                                        style={inputStyle}
+                                        onFocus={handleFocus}
+                                        onBlur={handleBlur}
+                                    >
+                                        <option value="" style={{ backgroundColor: '#fbf9f6', color: '#1b1c1a' }}>Select a category</option>
+                                        {CATEGORIES.map(cat => (
+                                            <option key={cat} value={cat} style={{ backgroundColor: '#fbf9f6', color: '#1b1c1a' }}>
+                                                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
