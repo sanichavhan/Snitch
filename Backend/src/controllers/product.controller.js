@@ -90,55 +90,171 @@ export async function getAllProducts(req, res) {
 }
 
 /**
- * Similarity map for related search suggestions
+ * Comprehensive synonym and related products map
+ * Groups similar items and variations together
  */
-const RELATED_MAP = {
-    "shirt": [ "Pants", "Jackets", "Trousers", "Suits" ],
-    "pant": [ "Shirts", "Polos", "Belts", "Shoes" ],
-    "tshirt": [ "Shorts", "Denims", "Hoodies" ],
-    "minimalist": [ "Clean", "Pure", "Essential" ]
+const SYNONYM_MAP = {
+    // Bottoms
+    "pant": ["pants", "trouser", "trousers", "jeans", "denim", "khaki", "chinos", "leggings", "shorts", "skirt"],
+    "pants": ["pant", "trouser", "trousers", "jeans", "denim", "khaki", "chinos", "leggings", "shorts", "skirt"],
+    "trouser": ["trousers", "pant", "pants", "jeans", "denim", "khaki", "chinos", "leggings", "shorts"],
+    "trousers": ["trouser", "pant", "pants", "jeans", "denim", "khaki", "chinos", "leggings", "shorts"],
+    "jean": ["jeans", "denim", "pant", "pants", "trouser", "trousers", "shorts", "khaki"],
+    "jeans": ["jean", "denim", "pant", "pants", "trouser", "trousers", "shorts", "khaki"],
+    "denim": ["jeans", "jean", "pant", "pants", "trouser", "shorts", "khaki", "chinos"],
+    "shorts": ["short", "pant", "pants", "jeans", "khaki", "skirt"],
+    "skirt": ["skirts", "dress", "pant", "pants", "shorts", "leggings"],
+
+    // Tops
+    "shirt": ["shirts", "tshirt", "t-shirt", "top", "tops", "blouse", "polo", "formal"],
+    "tshirt": ["t-shirt", "shirt", "top", "tops", "blouse", "polo"],
+    "t-shirt": ["tshirt", "shirt", "top", "tops", "blouse", "polo"],
+    "top": ["tops", "shirt", "tshirt", "t-shirt", "blouse", "polo", "crop"],
+    "blouse": ["blouses", "shirt", "top", "tshirt", "polo"],
+    "polo": ["polos", "shirt", "tshirt", "top", "formal"],
+
+    // Outerwear
+    "jacket": ["jackets", "coat", "coats", "blazer", "hoodie", "sweater", "cardigan"],
+    "coat": ["coats", "jacket", "jackets", "blazer", "hoodie", "cardigan"],
+    "blazer": ["blazers", "jacket", "coat", "formal"],
+    "hoodie": ["hoodies", "jacket", "sweater", "cardigan", "sweatshirt"],
+    "sweater": ["sweaters", "cardigan", "hoodie", "jacket"],
+    "cardigan": ["cardigans", "sweater", "hoodie", "jacket"],
+
+    // Footwear
+    "shoe": ["shoes", "sneaker", "sneakers", "boot", "boots", "heel", "heels", "flip-flop", "sandal"],
+    "shoes": ["shoe", "sneaker", "sneakers", "boot", "boots", "heel", "heels", "sandal"],
+    "sneaker": ["sneakers", "shoe", "shoes", "boot", "boots"],
+    "sneakers": ["sneaker", "shoe", "shoes", "boot", "boots"],
+    "boot": ["boots", "shoe", "shoes", "sneaker"],
+    "boots": ["boot", "shoe", "shoes", "sneaker"],
+
+    // Accessories
+    "belt": ["belts", "accessory", "watch", "bag", "scarf"],
+    "bag": ["bags", "purse", "backpack", "tote", "accessory"],
+    "watch": ["watches", "accessory", "belt", "scarf"],
+    "scarf": ["scarves", "accessory", "shawl", "wrap"],
+    "accessory": ["accessories", "belt", "bag", "watch", "scarf"]
 };
+
+/**
+ * Calculate string similarity using Levenshtein distance
+ * Returns a value between 0 and 1 (1 = exact match)
+ */
+function calculateSimilarity(str1, str2) {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+    
+    if (s1 === s2) return 1;
+    if (Math.abs(s1.length - s2.length) > 3) return 0;
+
+    const len = Math.max(s1.length, s2.length);
+    let distance = 0;
+    
+    for (let i = 0; i < Math.min(s1.length, s2.length); i++) {
+        if (s1[i] !== s2[i]) distance++;
+    }
+    
+    distance += Math.abs(s1.length - s2.length);
+    
+    return Math.max(0, 1 - (distance / len));
+}
+
+/**
+ * Get related terms for a search query
+ * Returns direct synonyms and fuzzy matches
+ */
+function getRelatedTerms(query) {
+    const lowerQuery = query.toLowerCase().trim();
+    const relatedTerms = new Set();
+    
+    // Direct synonym lookup
+    if (SYNONYM_MAP[lowerQuery]) {
+        SYNONYM_MAP[lowerQuery].forEach(term => relatedTerms.add(term));
+    }
+    
+    // Fuzzy matching - find terms that are similar but not exact matches
+    Object.keys(SYNONYM_MAP).forEach(key => {
+        const similarity = calculateSimilarity(lowerQuery, key);
+        if (similarity > 0.7 && similarity < 1) { // Similar but not exact
+            relatedTerms.add(key);
+            // Also add synonyms of the fuzzy match
+            SYNONYM_MAP[key].forEach(term => relatedTerms.add(term));
+        }
+    });
+    
+    return Array.from(relatedTerms).slice(0, 8); // Return top 8 related terms
+}
 
 export async function getSearchSuggestions(req, res) {
     const { q } = req.query;
 
-    if (!q || q.length < 3) {
+    if (!q || q.length < 2) {
         return res.status(200).json({ suggestions: [], related: [] });
     }
 
     try {
-        // 1. Direct matches on titles/categories
-        const products = await productModel.find({
+        const query = q.trim();
+        const lowerQuery = query.toLowerCase();
+        
+        // 1. Direct matches on titles/categories (prefix matching)
+        const directMatches = await productModel.find({
             $or: [
-                { title: { $regex: `^${q}`, $options: "i" } },
-                { category: { $regex: `^${q}`, $options: "i" } }
+                { title: { $regex: `^${query}`, $options: "i" } },
+                { category: { $regex: `^${query}`, $options: "i" } },
+                { tags: { $in: [new RegExp(`^${query}`, "i")] } }
             ]
-        }).limit(5).select("title category");
+        }).limit(6).select("title category tags");
 
-        const directSuggestions = [ ...new Set(products.map(p => p.title)) ];
-
-        // 2. Similarity suggestions (using RELATED_MAP)
-        let related = [];
-        const lowerQ = q.toLowerCase();
-        Object.keys(RELATED_MAP).forEach(key => {
-            if (lowerQ.includes(key)) {
-                related = [ ...related, ...RELATED_MAP[ key ] ];
+        const directSuggestions = [];
+        const seen = new Set();
+        
+        directMatches.forEach(product => {
+            if (!seen.has(product.title.toLowerCase())) {
+                directSuggestions.push(product.title);
+                seen.add(product.title.toLowerCase());
             }
         });
 
-        // 3. Category matches as related
-        const categoryMatches = await productModel.distinct("category", {
-            category: { $regex: q, $options: "i" }
+        // 2. Get related/similar terms using synonym map and fuzzy matching
+        const relatedTerms = getRelatedTerms(query);
+        
+        // 3. Find products matching related terms
+        let relatedProducts = [];
+        if (relatedTerms.length > 0) {
+            relatedProducts = await productModel.find({
+                $or: [
+                    { title: { $in: relatedTerms.map(t => new RegExp(t, "i")) } },
+                    { category: { $in: relatedTerms.map(t => new RegExp(t, "i")) } },
+                    { tags: { $in: relatedTerms.map(t => new RegExp(t, "i")) } }
+                ]
+            }).limit(5).select("title category");
+        }
+
+        const relatedSuggestions = [];
+        const relatedSeen = new Set();
+        relatedProducts.forEach(product => {
+            if (!relatedSeen.has(product.title.toLowerCase()) && 
+                !seen.has(product.title.toLowerCase())) {
+                relatedSuggestions.push(product.title);
+                relatedSeen.add(product.title.toLowerCase());
+            }
         });
 
         return res.status(200).json({
             success: true,
-            suggestions: directSuggestions,
-            related: [ ...new Set([ ...related, ...categoryMatches ]) ].slice(0, 5)
+            suggestions: directSuggestions.slice(0, 6),
+            related: relatedSuggestions.slice(0, 6),
+            relatedTerms: relatedTerms
         });
 
     } catch (error) {
-        res.status(500).json({ message: "Error fetching suggestions", error: error.message });
+        console.error("Search suggestions error:", error);
+        res.status(500).json({ 
+            success: false,
+            message: "Error fetching suggestions", 
+            error: error.message 
+        });
     }
 }
 

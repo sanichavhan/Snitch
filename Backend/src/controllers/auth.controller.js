@@ -12,7 +12,12 @@ async function sendTokenResponse(user, res, message) {
         expiresIn: config.JWT_EXPIRE
     })
 
-    res.cookie("token", token)
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: config.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000
+    })
 
     res.status(200).json({
         message,
@@ -33,6 +38,11 @@ export const register = async (req, res) => {
     const { email, contact, password, fullname, isSeller } = req.body;
 
     try {
+        // Check for empty fields
+        if (!email || !contact || !password || !fullname) {
+            return res.status(400).json({ message: "All fields are required" });
+        }
+
         const existingUser = await userModel.findOne({
             $or: [
                 { email },
@@ -56,56 +66,71 @@ export const register = async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        return res.status(500).json({ message: "Server error" });
+        return res.status(500).json({ message: "Server error during registration" });
     }
 }
 
 export const login = async (req, res) => {
-    const { email, password } = req.body;
+    try {
+        const { email, password } = req.body;
 
-    const user = await userModel.findOne({ email });
+        const user = await userModel.findOne({ email });
 
-    if (!user) {
-        return res.status(400).json({ message: "Invalid email or password" });
+        if (!user) {
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        const isMatch = await user.comparePassword(password);
+
+        if (!isMatch) {
+            return res.status(400).json({ message: "Invalid email or password" });
+        }
+
+        await sendTokenResponse(user, res, "User logged in successfully")
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({ message: "Server error" });
     }
-
-    const isMatch = await user.comparePassword(password);
-
-    if (!isMatch) {
-        return res.status(400).json({ message: "Invalid email or password" });
-    }
-
-    await sendTokenResponse(user, res, "User logged in successfully")
 }
 
 export const googleCallback = async (req, res) => {
-    const { id, displayName, emails, photos } = req.user
-    const email = emails[0].value;
-    const profilePic = photos[0].value;
+    try {
+        const { id, displayName, emails, photos } = req.user
+        const email = emails[0].value;
+        const profilePic = photos[0].value;
 
 
-    let user = await userModel.findOne({
-        email
-    })
-
-    if (!user) {
-        user = await userModel.create({
-            email,
-            googleId: id,
-            fullname: displayName,
+        let user = await userModel.findOne({
+            email
         })
+
+        if (!user) {
+            user = await userModel.create({
+                email,
+                googleId: id,
+                fullname: displayName,
+            })
+        }
+
+
+        const token = jwt.sign({
+            id: user._id,
+        }, config.JWT_SECRET, {
+            expiresIn: "7d"
+        })
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: config.NODE_ENV === "production",
+            sameSite: "lax",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        })
+
+        res.redirect(`${config.FRONTEND_URL}/`)
+    } catch (error) {
+        console.log(error)
+        res.redirect(`${config.FRONTEND_URL}/login?error=authentication_failed`)
     }
-
-
-    const token = jwt.sign({
-        id: user._id,
-    }, config.JWT_SECRET, {
-        expiresIn: "7d"
-    })
-
-    res.cookie("token", token)
-
-    res.redirect(`${config.FRONTEND_URL}/`)
 }
 
 export const getMe = async (req, res) => {

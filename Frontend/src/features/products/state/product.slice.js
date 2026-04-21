@@ -8,6 +8,9 @@ const productSlice = createSlice({
         products: [],
         suggestions: [],
         relatedSuggestions: [],
+        relatedTerms: [],
+        loading: false,
+        error: null
     },
     reducers: {
         setSellerProducts: (state, action) => {
@@ -17,12 +20,19 @@ const productSlice = createSlice({
             state.products = action.payload
         },
         setSearchSuggestions: (state, action) => {
-            state.suggestions = action.payload.suggestions;
-            state.relatedSuggestions = action.payload.related;
+            state.suggestions = action.payload.suggestions || [];
+            state.relatedSuggestions = action.payload.related || [];
+            state.relatedTerms = action.payload.relatedTerms || [];
+        },
+        setLoading: (state, action) => {
+            state.loading = action.payload
+        },
+        setError: (state, action) => {
+            state.error = action.payload
         }
     }
 })
 
 
-export const { setSellerProducts, setProducts, setSearchSuggestions } = productSlice.actions
+export const { setSellerProducts, setProducts, setSearchSuggestions, setLoading, setError } = productSlice.actions
 export default productSlice.reducer

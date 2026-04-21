@@ -1,24 +1,31 @@
 import React, { useState } from 'react';
 import { useAuth } from "../hook/useAuth";
 import { useNavigate } from "react-router";
+import { useSelector } from 'react-redux';
 import ContinueWithGoogle from '../components/ContinueWithGoogle';
 
 const Login = () => {
     const { handleLogin } = useAuth();
     const navigate = useNavigate();
+    const { error: authError, loading } = useSelector(state => state.auth);
 
     const [ formData, setFormData ] = useState({
         email: '',
         password: ''
     });
 
+    const [ localError, setLocalError ] = useState('');
+
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [ name ]: value }));
+        setLocalError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setLocalError('');
+        
         try {
             const user = await handleLogin({ email: formData.email, password: formData.password });
             if (user.role == "buyer") {
@@ -28,8 +35,11 @@ const Login = () => {
             }
         } catch (error) {
             console.error("Login failed", error);
+            setLocalError(error.message || "Login failed. Please try again.");
         }
     };
+
+    const errorMessage = localError || authError;
 
     return (
         <>
@@ -116,6 +126,20 @@ const Login = () => {
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="flex flex-col gap-10">
 
+                            {/* Error Message */}
+                            {errorMessage && (
+                                <div
+                                    className="w-full px-4 py-3 text-sm rounded"
+                                    style={{
+                                        backgroundColor: '#fee2e2',
+                                        color: '#dc2626',
+                                        borderLeft: '4px solid #dc2626'
+                                    }}
+                                >
+                                    {errorMessage}
+                                </div>
+                            )}
+
                             {/* Email */}
                             <div className="flex flex-col gap-2">
                                 <label
@@ -186,22 +210,27 @@ const Login = () => {
                             {/* Sign In Button */}
                             <button
                                 type="submit"
-                                className="w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 mt-2"
+                                disabled={loading}
+                                className="w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
                                 style={{
-                                    backgroundColor: '#1b1c1a',
+                                    backgroundColor: loading ? '#d0c5b5' : '#1b1c1a',
                                     color: '#fbf9f6',
                                     fontFamily: "'Inter', sans-serif"
                                 }}
                                 onMouseEnter={e => {
-                                    e.currentTarget.style.backgroundColor = '#C9A96E';
-                                    e.currentTarget.style.color = '#1b1c1a';
+                                    if (!loading) {
+                                        e.currentTarget.style.backgroundColor = '#C9A96E';
+                                        e.currentTarget.style.color = '#1b1c1a';
+                                    }
                                 }}
                                 onMouseLeave={e => {
-                                    e.currentTarget.style.backgroundColor = '#1b1c1a';
-                                    e.currentTarget.style.color = '#fbf9f6';
+                                    if (!loading) {
+                                        e.currentTarget.style.backgroundColor = '#1b1c1a';
+                                        e.currentTarget.style.color = '#fbf9f6';
+                                    }
                                 }}
                             >
-                                Sign In
+                                {loading ? 'Signing In...' : 'Sign In'}
                             </button>
 
                             {/* Divider */}

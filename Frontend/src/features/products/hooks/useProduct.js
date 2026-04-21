@@ -25,12 +25,27 @@ export const useProduct = () => {
     }
 
     async function handleGetSuggestions(query) {
-        if (!query || query.length < 3) {
+        try {
+            // Minimum 2 characters for suggestions
+            if (!query || query.trim().length < 2) {
+                dispatch(setSearchSuggestions({ suggestions: [], related: [] }));
+                return;
+            }
+
+            const data = await getSearchSuggestions(query.trim());
+            
+            if (data.success) {
+                dispatch(setSearchSuggestions({
+                    suggestions: data.suggestions || [],
+                    related: data.related || []
+                }));
+            } else {
+                dispatch(setSearchSuggestions({ suggestions: [], related: [] }));
+            }
+        } catch (error) {
+            console.error("Error fetching suggestions:", error);
             dispatch(setSearchSuggestions({ suggestions: [], related: [] }));
-            return;
         }
-        const data = await getSearchSuggestions(query)
-        dispatch(setSearchSuggestions(data))
     }
 
     async function handleGetProductById(productId) {

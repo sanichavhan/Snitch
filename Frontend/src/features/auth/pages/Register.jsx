@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from "../hook/useAuth";
 import { useNavigate } from 'react-router';
+import { useSelector } from 'react-redux';
 import ContinueWithGoogle from '../components/ContinueWithGoogle';
 
 const Register = () => {
     const { handleRegister } = useAuth();
     const navigate = useNavigate();
+    const {loading } = useSelector(state => state.auth);
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -15,22 +17,34 @@ const Register = () => {
         isSeller: false
     });
 
+    // const [localError, setLocalError] = useState('');
+
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
         setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        // setLocalError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await handleRegister({
-            email: formData.email,
-            contact: formData.contactNumber,
-            password: formData.password,
-            isSeller: formData.isSeller,
-            fullname: formData.fullName
-        });
-        navigate("/");
+        // setLocalError('');
+
+        try {
+            await handleRegister({
+                email: formData.email,
+                contact: formData.contactNumber,
+                password: formData.password,
+                isSeller: formData.isSeller,
+                fullname: formData.fullName
+            });
+            navigate("/");
+        } catch (error) {
+            console.error("Registration failed", error);
+            // setLocalError(error.message || "Registration failed. Please try again.");
+        }
     };
+
+    // const errorMessage = localError || authError;
 
     const inputStyle = {
         color: '#1b1c1a',
@@ -122,6 +136,20 @@ const Register = () => {
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="flex flex-col gap-9">
+
+                            {/* Error Message */}
+                            {/* {errorMessage && (
+                                <div
+                                    className="w-full px-4 py-3 text-sm rounded"
+                                    style={{
+                                        backgroundColor: '#fee2e2',
+                                        color: '#dc2626',
+                                        borderLeft: '4px solid #dc2626'
+                                    }}
+                                >
+                                    {errorMessage}
+                                </div>
+                            )} */}
 
                             {/* Full Name */}
                             <div className="flex flex-col gap-2">
@@ -259,18 +287,23 @@ const Register = () => {
                             {/* Sign Up Button */}
                             <button
                                 type="submit"
-                                className="w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 mt-2"
-                                style={{ backgroundColor: '#1b1c1a', color: '#fbf9f6', fontFamily: "'Inter', sans-serif" }}
+                                disabled={loading}
+                                className="w-full py-4 text-[11px] uppercase tracking-[0.25em] font-medium transition-all duration-300 mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                style={{ backgroundColor: loading ? '#d0c5b5' : '#1b1c1a', color: '#fbf9f6', fontFamily: "'Inter', sans-serif" }}
                                 onMouseEnter={e => {
-                                    e.currentTarget.style.backgroundColor = '#C9A96E';
-                                    e.currentTarget.style.color = '#1b1c1a';
+                                    if (!loading) {
+                                        e.currentTarget.style.backgroundColor = '#C9A96E';
+                                        e.currentTarget.style.color = '#1b1c1a';
+                                    }
                                 }}
                                 onMouseLeave={e => {
-                                    e.currentTarget.style.backgroundColor = '#1b1c1a';
-                                    e.currentTarget.style.color = '#fbf9f6';
+                                    if (!loading) {
+                                        e.currentTarget.style.backgroundColor = '#1b1c1a';
+                                        e.currentTarget.style.color = '#fbf9f6';
+                                    }
                                 }}
                             >
-                                Sign Up
+                                {loading ? 'Signing Up...' : 'Sign Up'}
                             </button>
 
                             {/* Divider */}
