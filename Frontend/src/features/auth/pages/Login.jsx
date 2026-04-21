@@ -7,24 +7,24 @@ import ContinueWithGoogle from '../components/ContinueWithGoogle';
 const Login = () => {
     const { handleLogin } = useAuth();
     const navigate = useNavigate();
-    const { error: authError, loading } = useSelector(state => state.auth);
+    const { loading } = useSelector(state => state.auth);
 
     const [ formData, setFormData ] = useState({
         email: '',
         password: ''
     });
 
-    const [ localError, setLocalError ] = useState('');
+    // const [ localError, setLocalError ] = useState('');
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [ name ]: value }));
-        setLocalError('');
+        // setLocalError('');
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLocalError('');
+        // setLocalError('');
         
         try {
             const user = await handleLogin({ email: formData.email, password: formData.password });
@@ -35,11 +35,11 @@ const Login = () => {
             }
         } catch (error) {
             console.error("Login failed", error);
-            setLocalError(error.message || "Login failed. Please try again.");
+            // setLocalError(error.message || "Login failed. Please try again.");
         }
     };
 
-    const errorMessage = localError || authError;
+    // const errorMessage = localError || authError;
 
     return (
         <>
@@ -127,7 +127,7 @@ const Login = () => {
                         <form onSubmit={handleSubmit} className="flex flex-col gap-10">
 
                             {/* Error Message */}
-                            {errorMessage && (
+                            {/* {errorMessage && (
                                 <div
                                     className="w-full px-4 py-3 text-sm rounded"
                                     style={{
@@ -138,7 +138,7 @@ const Login = () => {
                                 >
                                     {errorMessage}
                                 </div>
-                            )}
+                            )} */}
 
                             {/* Email */}
                             <div className="flex flex-col gap-2">

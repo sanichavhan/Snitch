@@ -29,7 +29,9 @@ app.use(passport.initialize());
 passport.use(new GoogleStrategy({
     clientID: config.GOOGLE_CLIENT_ID,
     clientSecret: config.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/auth/google/callback"
+    callbackURL: config.NODE_ENV === "production" 
+        ? "https://snitch-ly8f.onrender.com/api/auth/google/callback"
+        : "http://localhost:3000/api/auth/google/callback"
 }, (accessToken, refreshToken, profile, done) => {
     return done(null, profile);
 }))
