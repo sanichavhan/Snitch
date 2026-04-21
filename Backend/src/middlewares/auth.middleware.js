@@ -5,10 +5,18 @@ import blacklistModel from "../models/blacklist.model.js";
 
 
 export const authenticateUser = async (req, res, next) => {
-    const token = req.cookies.token
+    let token = req.cookies.token
+    
+    // Also check Authorization header for Bearer token
+    if (!token && req.headers.authorization) {
+        const authHeader = req.headers.authorization
+        if (authHeader.startsWith('Bearer ')) {
+            token = authHeader.slice(7) // Remove 'Bearer ' prefix
+        }
+    }
 
     if (!token) {
-        console.log("❌ No token in cookies. Cookies received:", Object.keys(req.cookies))
+        console.log("❌ No token in cookies or Authorization header. Cookies received:", Object.keys(req.cookies))
         return res.status(401).json({ message: "Unauthorized" })
     }
 
@@ -41,7 +49,15 @@ export const authenticateUser = async (req, res, next) => {
 
 
 export const authenticateSeller = async (req, res, next) => {
-    const token = req.cookies.token
+    let token = req.cookies.token
+    
+    // Also check Authorization header for Bearer token
+    if (!token && req.headers.authorization) {
+        const authHeader = req.headers.authorization
+        if (authHeader.startsWith('Bearer ')) {
+            token = authHeader.slice(7) // Remove 'Bearer ' prefix
+        }
+    }
 
     if (!token) {
         return res.status(401).json({ message: "Unauthorized" })

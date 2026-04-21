@@ -5,6 +5,16 @@ const authApiInstance = axios.create({
     withCredentials: true,
 })
 
+// Add interceptor to include token in Authorization header
+authApiInstance.interceptors.request.use((config) => {
+    const token = localStorage.getItem('authToken')
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+}, (error) => {
+    return Promise.reject(error)
+})
 
 export async function register({ email, contact, password, fullname, isSeller }) {
 
@@ -15,6 +25,12 @@ export async function register({ email, contact, password, fullname, isSeller })
         fullname,
         isSeller
     })
+    
+    // Store token if returned
+    if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token)
+    }
+    
     return response.data
 }
 
@@ -22,6 +38,11 @@ export async function login({ email, password }) {
     const response = await authApiInstance.post("/login", {
         email, password
     })
+
+    // Store token if returned
+    if (response.data.token) {
+        localStorage.setItem('authToken', response.data.token)
+    }
 
     return response.data
 }
@@ -34,6 +55,9 @@ export async function getMe() {
 
 export async function logout() {
     const response = await authApiInstance.post("/logout")
+    
+    // Clear stored token on logout
+    localStorage.removeItem('authToken')
 
     return response.data
 }

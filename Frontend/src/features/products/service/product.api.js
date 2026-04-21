@@ -5,6 +5,17 @@ const productApiInstance = axios.create({
     withCredentials: true,
 })
 
+// Add interceptor to include token in Authorization header
+productApiInstance.interceptors.request.use((config) => {
+    const token = localStorage.getItem('authToken')
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+}, (error) => {
+    return Promise.reject(error)
+})
+
 export async function createProduct(formData) {
     const response = await productApiInstance.post("/", formData)
 

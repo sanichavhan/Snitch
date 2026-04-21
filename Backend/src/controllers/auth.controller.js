@@ -30,6 +30,7 @@ async function sendTokenResponse(user, res, message) {
     res.status(200).json({
         message,
         success: true,
+        token, // Return token in body for cross-domain scenarios
         user: {
             id: user._id,
             email: user.email,
@@ -131,7 +132,8 @@ export const googleCallback = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
 
-        res.redirect(`${config.FRONTEND_URL}/`)
+        // Redirect with token in URL for cross-domain scenarios
+        res.redirect(`${config.FRONTEND_URL}/?token=${token}`)
     } catch (error) {
         console.error("Google callback error:", error)
         res.redirect(`${config.FRONTEND_URL}/login?error=authentication_failed`)
