@@ -67,26 +67,86 @@ export async function getSellerProducts(req, res) {
 
 export async function getAllProducts(req, res) {
     const { q } = req.query;
-    let query = {};
+    let directProducts = [];
+    let showingRelated = false;
+    let relatedSearchTerms = [];
+    let isRandomView = false;
 
-    if (q && q.length >= 3) {
-        query = {
-            $or: [
-                { title: { $regex: q, $options: "i" } },
-                { description: { $regex: q, $options: "i" } },
-                { category: { $regex: q, $options: "i" } },
-                { tags: { $in: [ new RegExp(q, "i") ] } }
-            ]
-        };
+    try {
+        if (q && q.trim().length >= 2) {
+            // SEARCH MODE: When user searches for something
+            const searchQuery = q.trim().toLowerCase();
+            
+            // 1. Search for direct matches
+            const query = {
+                $or: [
+                    { title: { $regex: searchQuery, $options: "i" } },
+                    { description: { $regex: searchQuery, $options: "i" } },
+                    { category: { $regex: searchQuery, $options: "i" } },
+                    { tags: { $in: [new RegExp(searchQuery, "i")] } }
+                ]
+            };
+
+            directProducts = await productModel.find(query).sort({ createdAt: -1 }).limit(50);
+
+            // 2. Check if we have enough products with stock
+            const productsWithStock = directProducts.filter(product => {
+                return product.variants && product.variants.length > 0 && 
+                       product.variants.some(v => v.stock > 0);
+            });
+
+            // 3. If not enough products with stock, search for related products
+            if (productsWithStock.length < 2) {
+                showingRelated = true;
+                relatedSearchTerms = getRelatedTerms(searchQuery);
+
+                if (relatedSearchTerms.length > 0) {
+                    const relatedQuery = {
+                        $or: [
+                            { title: { $in: relatedSearchTerms.map(t => new RegExp(t, "i")) } },
+                            { category: { $in: relatedSearchTerms.map(t => new RegExp(t, "i")) } },
+                            { tags: { $in: relatedSearchTerms.map(t => new RegExp(t, "i")) } }
+                        ]
+                    };
+
+                    directProducts = await productModel.find(relatedQuery).sort({ createdAt: -1 }).limit(50);
+                }
+            }
+        } else {
+            // DISCOVERY MODE: Show random products from different sellers
+            isRandomView = true;
+
+            // Get random products using MongoDB aggregation
+            directProducts = await productModel.aggregate([
+                { $sample: { size: 24 } }, // Get 24 random products
+                { $lookup: {
+                    from: 'users',
+                    localField: 'seller',
+                    foreignField: '_id',
+                    as: 'sellerInfo'
+                }},
+                { $sort: { createdAt: -1 } }
+            ]);
+        }
+
+        return res.status(200).json({
+            message: isRandomView ? "Showing random products from different sellers" : 
+                     showingRelated ? "Showing related products as exact match is out of stock" : 
+                     "Products fetched successfully",
+            success: true,
+            products: directProducts,
+            showingRelated: showingRelated,
+            relatedTerms: relatedSearchTerms,
+            isRandomView: isRandomView
+        });
+    } catch (error) {
+        console.error("Error fetching products:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Error fetching products",
+            error: error.message
+        });
     }
-
-    const products = await productModel.find(query).sort({ createdAt: -1 });
-
-    return res.status(200).json({
-        message: "Products fetched successfully",
-        success: true,
-        products
-    })
 }
 
 /**

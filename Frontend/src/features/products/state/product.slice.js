@@ -9,6 +9,8 @@ const productSlice = createSlice({
         suggestions: [],
         relatedSuggestions: [],
         relatedTerms: [],
+        showingRelated: false,
+        isRandomView: false,
         loading: false,
         error: null
     },
@@ -17,7 +19,10 @@ const productSlice = createSlice({
             state.sellerProducts = action.payload
         },
         setProducts: (state, action) => {
-            state.products = action.payload
+            state.products = action.payload.products || action.payload;
+            state.showingRelated = action.payload.showingRelated || false;
+            state.isRandomView = action.payload.isRandomView || false;
+            state.relatedTerms = action.payload.relatedTerms || [];
         },
         setSearchSuggestions: (state, action) => {
             state.suggestions = action.payload.suggestions || [];

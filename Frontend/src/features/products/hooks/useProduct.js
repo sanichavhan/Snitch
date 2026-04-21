@@ -1,6 +1,6 @@
 import { createProduct, getSellerProduct, getAllProducts, getProductById, addProductVariant, getSearchSuggestions } from "../service/product.api"
 import { useDispatch } from "react-redux"
-import { setSellerProducts, setProducts, setSearchSuggestions } from "../state/product.slice"
+import { setSellerProducts, setProducts, setSearchSuggestions, setError } from "../state/product.slice"
 
 
 
@@ -9,19 +9,44 @@ export const useProduct = () => {
     const dispatch = useDispatch()
 
     async function handleCreateProduct(formData) {
-        const data = await createProduct(formData)
-        return data.product
+        try {
+            const data = await createProduct(formData)
+            return data.product
+        } catch (error) {
+            console.error("Error creating product:", error);
+            dispatch(setError(error.message || "Failed to create product"));
+            throw error
+        }
     }
 
     async function handleGetSellerProduct(query = {}) {
-        const data = await getSellerProduct(query)
-        dispatch(setSellerProducts(data.products))
-        return data.products
+        try {
+            const data = await getSellerProduct(query)
+            if (data.success) {
+                dispatch(setSellerProducts(data.products || []))
+            }
+            return data.products || []
+        } catch (error) {
+            console.error("Error fetching seller products:", error);
+            dispatch(setError(error.message || "Failed to fetch seller products"));
+            return []
+        }
     }
 
     async function handleGetAllProducts(query = {}) {
-        const data = await getAllProducts(query)
-        dispatch(setProducts(data.products))
+        try {
+            const data = await getAllProducts(query)
+            if (data.success) {
+                dispatch(setProducts({
+                    products: data.products || [],
+                    showingRelated: data.showingRelated || false,
+                    relatedTerms: data.relatedTerms || []
+                }));
+            }
+        } catch (error) {
+            console.error("Error fetching products:", error);
+            dispatch(setError(error.message || "Failed to fetch products"));
+        }
     }
 
     async function handleGetSuggestions(query) {
@@ -49,14 +74,25 @@ export const useProduct = () => {
     }
 
     async function handleGetProductById(productId) {
-        const data = await getProductById(productId)
-        return data.product
+        try {
+            const data = await getProductById(productId)
+            return data.product
+        } catch (error) {
+            console.error("Error fetching product:", error);
+            dispatch(setError(error.message || "Failed to fetch product"));
+            return null
+        }
     }
 
     async function handleAddProductVariant(productId, newProductVariant) {
-        const data = await addProductVariant(productId, newProductVariant)
-
-        return data
+        try {
+            const data = await addProductVariant(productId, newProductVariant)
+            return data
+        } catch (error) {
+            console.error("Error adding product variant:", error);
+            dispatch(setError(error.message || "Failed to add product variant"));
+            throw error
+        }
     }
 
     return { handleCreateProduct, handleGetSellerProduct, handleGetAllProducts, handleGetProductById, handleAddProductVariant, handleGetSuggestions }

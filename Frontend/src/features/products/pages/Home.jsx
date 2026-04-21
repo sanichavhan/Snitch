@@ -8,6 +8,9 @@ import UserMenu from '../../auth/components/UserMenu';
 
 const Home = () => {
     const products = useSelector(state => state.product.products);
+    const showingRelated = useSelector(state => state.product.showingRelated);
+    const isRandomView = useSelector(state => state.product.isRandomView);
+    const relatedTerms = useSelector(state => state.product.relatedTerms);
     const user = useSelector(state => state.auth.user);
     const { handleGetAllProducts } = useProduct();
 
@@ -82,7 +85,32 @@ const Home = () => {
                         <SearchBar onSearch={handleSearch} />
                     </div>
 
-                    {/* ── Product Grid ── */}
+                    {/* ── Random Products View Message ── */}
+                    {isRandomView && (
+                        <div className="mb-12 p-4 bg-[#f5f3f0] border border-[#e4e2df] text-center rounded">
+                            <p className="text-sm" style={{ color: '#7A6E63' }}>
+                                <span style={{ color: '#C9A96E', fontWeight: '500' }}>
+                                    ✨ Curated Selection
+                                </span>
+                                {' - '}Discover products from different sellers
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ── Related Products Message ── */}
+                    {/* {showingRelated && relatedTerms && relatedTerms.length > 0 && (
+                        <div className="mb-12 p-4 bg-[#f5f3f0] border border-[#e4e2df] text-center rounded">
+                            <p className="text-sm" style={{ color: '#7A6E63' }}>
+                                <span style={{ color: '#C9A96E', fontWeight: '500' }}>
+                                    Out of Stock
+                                </span>
+                                {' - '}Showing related products:
+                                <span style={{ color: '#1b1c1a', fontWeight: '500', marginLeft: '8px' }}>
+                                    {relatedTerms.join(', ')}
+                                </span>
+                            </p>
+                        </div>
+                    )} */}
                     {products && products.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-16 pb-32">
                             {products.map(product => {
